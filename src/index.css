@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-base: var(--background);
+  --color-bg-surface: var(--surface);
+  --color-brand-primary: var(--primary);
+  --color-brand-accent: var(--accent);
+  --color-txt-base: var(--text-base);
+  --color-txt-muted: var(--text-muted);
+  --color-border-base: var(--border);
+  --color-success: var(--success);
+  --color-error: var(--error);
+}
+
+:root {
+  --background: #F9FAFB;
+  --surface: #FFFFFF;
+  --primary: #1E3A8A;
+  --accent: #F59E0B;
+  --text-base: #334155;
+  --text-muted: #64748B;
+  --border: #E2E8F0;
+  
+  --success: #10B981;
+  --error: #EF4444;
+}
+
+:root.dark {
+  --background: #0F172A;
+  --surface: #1E293B;
+  --primary: #3B82F6;
+  --accent: #FBBF24;
+  --text-base: #E2E8F0;
+  --text-muted: #94A3B8;
+  --border: #334155;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-base);
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Custom Scrollbar for modern touch */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
