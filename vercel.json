@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://toshokan-api.onrender.com/api/:path*"
+      "destination": "https://toshokan-backend.onrender.com/api/:path*"
     }
   ]
 }
