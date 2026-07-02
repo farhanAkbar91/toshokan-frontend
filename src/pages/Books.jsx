@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { PlusCircle, Search, Edit2, Trash2, BookOpen, User, Building, Calendar, Archive, Bookmark } from 'lucide-react';
+import { PlusCircle, Search, Edit2, Trash2, BookOpen, User, Building, Calendar, Archive, Bookmark, Send } from 'lucide-react';
 import { Button } from '../components/atoms/Button';
 import { Input } from '../components/atoms/Input';
 import { Badge } from '../components/atoms/Badge';
 
-export const Books = ({ books, categories, onAdd, onEdit, onDelete, onOpenBorrow, onSearch }) => {
+export const Books = ({ books, categories, onAdd, onEdit, onDelete, onOpenBorrow, onSearch, role }) => {
   const [searchTerm, setSearchTerm] = useState('');
   
   const handleSearchChange = (e) => {
@@ -18,18 +18,28 @@ export const Books = ({ books, categories, onAdd, onEdit, onDelete, onOpenBorrow
     return cat ? cat.nama_kategori : 'Umum';
   };
 
+  const isAdmin = role === 'admin';
+
   return (
     <div className="flex flex-col gap-6 w-full text-left">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-black text-txt-base tracking-tight m-0">Koleksi Buku</h2>
-          <p className="text-sm text-txt-muted">Kelola koleksi buku, tambah stok, edit info, atau proses peminjaman langsung.</p>
+          <h2 className="text-2xl font-black text-txt-base tracking-tight m-0">
+            {isAdmin ? 'Manajemen Koleksi Buku' : 'Katalog Perpustakaan'}
+          </h2>
+          <p className="text-sm text-txt-muted">
+            {isAdmin 
+              ? 'Kelola koleksi buku, tambah stok, edit info, atau proses peminjaman langsung.'
+              : 'Telusuri koleksi buku yang tersedia dan ajukan peminjaman secara mandiri.'}
+          </p>
         </div>
-        <Button onClick={() => onAdd()} variant="accent" className="shrink-0">
-          <PlusCircle className="w-4 h-4" />
-          <span>Tambah Buku</span>
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => onAdd()} variant="accent" className="shrink-0 cursor-pointer">
+            <PlusCircle className="w-4 h-4" />
+            <span>Tambah Buku</span>
+          </Button>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -54,7 +64,7 @@ export const Books = ({ books, categories, onAdd, onEdit, onDelete, onOpenBorrow
             <span className="text-xs text-txt-muted">Belum ada buku yang terdaftar atau keyword pencarian tidak cocok.</span>
           </div>
           {searchTerm && (
-            <Button variant="secondary" onClick={() => { setSearchTerm(''); onSearch(''); }} className="mt-2 text-xs">
+            <Button variant="secondary" onClick={() => { setSearchTerm(''); onSearch(''); }} className="mt-2 text-xs cursor-pointer">
               Reset Pencarian
             </Button>
           )}
@@ -108,34 +118,48 @@ export const Books = ({ books, categories, onAdd, onEdit, onDelete, onOpenBorrow
                   </div>
                 </div>
 
-                {/* Actions */}
+                {/* Actions Panel */}
                 <div className="flex items-center justify-between border-t border-border-base/50 pt-4 mt-auto">
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => onEdit(book)}
-                      className="p-2 rounded-lg bg-bg-base border border-border-base/60 text-txt-muted hover:text-brand-primary hover:border-brand-primary/30 transition-all cursor-pointer"
-                      title="Edit Buku"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(book.id_buku)}
-                      className="p-2 rounded-lg bg-bg-base border border-border-base/60 text-txt-muted hover:text-error hover:border-error/30 transition-all cursor-pointer"
-                      title="Hapus Buku"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {isAdmin ? (
+                    <>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => onEdit(book)}
+                          className="p-2 rounded-lg bg-bg-base border border-border-base/60 text-txt-muted hover:text-brand-primary hover:border-brand-primary/30 transition-all cursor-pointer"
+                          title="Edit Buku"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onDelete(book.id_buku)}
+                          className="p-2 rounded-lg bg-bg-base border border-border-base/60 text-txt-muted hover:text-error hover:border-error/30 transition-all cursor-pointer"
+                          title="Hapus Buku"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
 
-                  <Button
-                    onClick={() => onOpenBorrow(book.id_buku)}
-                    variant={hasStock ? 'primary' : 'secondary'}
-                    disabled={!hasStock}
-                    className="text-xs py-1.5 px-3 font-bold"
-                  >
-                    <Archive className="w-3.5 h-3.5" />
-                    <span>Pinjam Buku</span>
-                  </Button>
+                      <Button
+                        onClick={() => onOpenBorrow(book.id_buku)}
+                        variant={hasStock ? 'primary' : 'secondary'}
+                        disabled={!hasStock}
+                        className="text-xs py-1.5 px-3 font-bold cursor-pointer"
+                      >
+                        <Archive className="w-3.5 h-3.5" />
+                        <span>Pinjamkan</span>
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={() => onOpenBorrow(book.id_buku)}
+                      variant={hasStock ? 'primary' : 'secondary'}
+                      disabled={!hasStock}
+                      className="text-xs py-2 px-4 font-bold w-full justify-center gap-2 cursor-pointer"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>{hasStock ? 'Ajukan Peminjaman Mandiri' : 'Stok Habis'}</span>
+                    </Button>
+                  )}
                 </div>
               </div>
             );

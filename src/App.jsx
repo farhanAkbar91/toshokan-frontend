@@ -4,6 +4,10 @@ import { Dashboard } from './pages/Dashboard';
 import { Books } from './pages/Books';
 import { Members } from './pages/Members';
 import { Circulation } from './pages/Circulation';
+import { Reports } from './pages/Reports';
+import { MyLoans } from './pages/MyLoans';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { BookFormModal } from './components/organisms/BookFormModal';
 import { MemberFormModal } from './components/organisms/MemberFormModal';
 import { LoanFormModal } from './components/organisms/LoanFormModal';
@@ -16,8 +20,21 @@ function App() {
     return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
 
+  // Auth State
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  const [role, setRole] = useState(() => {
+    return localStorage.getItem('role') || '';
+  });
+  const [authView, setAuthView] = useState('login'); // 'login' or 'register'
+
   // Navigation state
-  const [activePage, setActivePage] = useState('dashboard');
+  const [activePage, setActivePage] = useState(() => {
+    const savedRole = localStorage.getItem('role');
+    return savedRole === 'admin' ? 'dashboard' : 'books';
+  });
 
   // Backend Data state
   const [books, setBooks] = useState([]);
@@ -46,17 +63,40 @@ function App() {
     }
   }, [isDark]);
 
-  // Load initial data
+  // Load initial data on login
   useEffect(() => {
-    fetchCategories();
-    fetchBooks();
-    fetchMembers();
-    fetchLoans();
-  }, []);
+    if (currentUser) {
+      fetchCategories();
+      fetchBooks();
+      if (role === 'admin') {
+        fetchMembers();
+      }
+      fetchLoans();
+    }
+  }, [currentUser, role]);
 
   // Show toast utility
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
+  };
+
+  // --- Login / Logout Handlers ---
+  const handleLoginSuccess = (user, userRole) => {
+    setCurrentUser(user);
+    setRole(userRole);
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('role', userRole);
+    setActivePage(userRole === 'admin' ? 'dashboard' : 'books');
+    showToast(`Selamat datang kembali, ${user.nama}!`, 'success');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setRole('');
+    localStorage.removeItem('user');
+    localStorage.removeItem('role');
+    setAuthView('login');
+    showToast('Anda berhasil keluar dari sistem.', 'success');
   };
 
   // --- API Fetches ---
@@ -66,8 +106,6 @@ function App() {
       if (res.ok) {
         const data = await res.json();
         setCategories(data);
-      } else {
-        console.error('Gagal mengambil data kategori');
       }
     } catch (err) {
       console.error(err);
@@ -105,7 +143,8 @@ function App() {
 
   const fetchLoans = async () => {
     try {
-      const res = await fetch('/api/sirkulasi/peminjaman');
+      const url = role === 'admin' ? '/api/sirkulasi/peminjaman' : `/api/sirkulasi/peminjaman?id_anggota=${currentUser.id}`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setLoans(data);
@@ -154,7 +193,7 @@ function App() {
       if (res.ok) {
         showToast(result.message || 'Buku berhasil dihapus', 'success');
         fetchBooks();
-        fetchLoans(); // Refresh loans to see updated details if any
+        fetchLoans();
       } else {
         showToast(result.message || 'Gagal menghapus buku', 'error');
       }
@@ -185,6 +224,25 @@ function App() {
     }
   };
 
+  const handleToggleMemberStatus = async (id, newStatus) => {
+    try {
+      const res = await fetch(`/api/anggota/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status_akun: newStatus })
+      });
+      const result = await res.json();
+      if (res.ok) {
+        showToast(result.message || 'Status anggota berhasil diperbarui', 'success');
+        fetchMembers();
+      } else {
+        showToast(result.message || 'Gagal memperbarui status anggota', 'error');
+      }
+    } catch (err) {
+      showToast('Kesalahan koneksi saat memperbarui status anggota', 'error');
+    }
+  };
+
   const handleCreateLoan = async (formData) => {
     try {
       const res = await fetch('/api/sirkulasi/pinjam', {
@@ -200,12 +258,31 @@ function App() {
         setIsLoanModalOpen(false);
         setPreselectedBookId('');
         fetchLoans();
-        fetchBooks(); // Refresh stock
+        fetchBooks();
       } else {
         showToast(result.message || 'Gagal memproses peminjaman', 'error');
       }
     } catch (err) {
       showToast('Kesalahan koneksi saat memproses peminjaman', 'error');
+    }
+  };
+
+  const handleApproveLoan = async (id) => {
+    try {
+      const res = await fetch(`/api/sirkulasi/${id}/setujui`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await res.json();
+      if (res.ok) {
+        showToast(result.message || 'Peminjaman disetujui pustakawan!', 'success');
+        fetchLoans();
+        fetchBooks();
+      } else {
+        showToast(result.message || 'Gagal menyetujui peminjaman', 'error');
+      }
+    } catch (error) {
+      showToast('Kesalahan koneksi saat menyetujui peminjaman', 'error');
     }
   };
 
@@ -225,12 +302,30 @@ function App() {
           : '';
         showToast(`Buku berhasil dikembalikan${fineText}!`, 'success');
         fetchLoans();
-        fetchBooks(); // Restore stock
+        fetchBooks();
       } else {
         showToast(result.message || 'Gagal memproses pengembalian buku', 'error');
       }
     } catch (err) {
       showToast('Kesalahan koneksi saat memproses pengembalian', 'error');
+    }
+  };
+
+  const handlePayFine = async (id) => {
+    try {
+      const res = await fetch(`/api/sirkulasi/denda/${id}/bayar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await res.json();
+      if (res.ok) {
+        showToast(result.message || 'Denda berhasil dilunasi!', 'success');
+        fetchLoans();
+      } else {
+        showToast(result.message || 'Gagal melunasi denda', 'error');
+      }
+    } catch (error) {
+      showToast('Kesalahan koneksi saat melunasi denda', 'error');
     }
   };
 
@@ -246,20 +341,45 @@ function App() {
   };
 
   const openLoanForBook = (bookId) => {
-    setPreselectedBookId(bookId.toString());
-    setIsLoanModalOpen(true);
+    if (role === 'anggota') {
+      const selectedBook = books.find(b => b.id_buku.toString() === bookId.toString());
+      if (!selectedBook) return;
+
+      const confirmCheckout = window.confirm(`Apakah Anda yakin ingin mengajukan peminjaman mandiri untuk buku "${selectedBook.judul_buku}"?`);
+      if (confirmCheckout) {
+        handleCreateLoan({
+          id_anggota: currentUser.id,
+          id_buku: bookId,
+          status: 'Pengajuan'
+        });
+      }
+    } else {
+      setPreselectedBookId(bookId.toString());
+      setIsLoanModalOpen(true);
+    }
   };
 
-  // Render appropriate view based on active tab
+  // Render appropriate view based on active tab & user role
   const renderPageContent = () => {
     switch (activePage) {
       case 'dashboard':
-        return <Dashboard books={books} members={members} loans={loans} />;
+        return role === 'admin' ? (
+          <Dashboard books={books} members={members} loans={loans} />
+        ) : (
+          <Books
+            books={books}
+            categories={categories}
+            role={role}
+            onOpenBorrow={openLoanForBook}
+            onSearch={fetchBooks}
+          />
+        );
       case 'books':
         return (
           <Books
             books={books}
             categories={categories}
+            role={role}
             onAdd={openAddBook}
             onEdit={openEditBook}
             onDelete={handleDeleteBook}
@@ -268,19 +388,50 @@ function App() {
           />
         );
       case 'members':
-        return <Members members={members} onAdd={() => setIsMemberModalOpen(true)} />;
+        return role === 'admin' ? (
+          <Members members={members} onAdd={() => setIsMemberModalOpen(true)} onToggleStatus={handleToggleMemberStatus} />
+        ) : null;
       case 'circulation':
-        return (
+        return role === 'admin' ? (
           <Circulation
             loans={loans}
             onOpenLoan={() => setIsLoanModalOpen(true)}
             onReturnBook={handleReturnBook}
+            onApproveLoan={handleApproveLoan}
+            onPayFine={handlePayFine}
+          />
+        ) : null;
+      case 'reports':
+        return role === 'admin' ? <Reports /> : null;
+      case 'myloans':
+        return role === 'anggota' ? <MyLoans currentUser={currentUser} /> : null;
+      default:
+        return role === 'admin' ? (
+          <Dashboard books={books} members={members} loans={loans} />
+        ) : (
+          <Books
+            books={books}
+            categories={categories}
+            role={role}
+            onOpenBorrow={openLoanForBook}
+            onSearch={fetchBooks}
           />
         );
-      default:
-        return <Dashboard books={books} members={members} loans={loans} />;
     }
   };
+
+  // --- Auth Render Guard ---
+  if (!currentUser) {
+    if (authView === 'register') {
+      return <RegisterPage onNavigateToLogin={() => setAuthView('login')} />;
+    }
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        onNavigateToRegister={() => setAuthView('register')}
+      />
+    );
+  }
 
   return (
     <Layout
@@ -288,34 +439,43 @@ function App() {
       setActivePage={setActivePage}
       isDark={isDark}
       toggleTheme={() => setIsDark(!isDark)}
+      currentUser={currentUser}
+      role={role}
+      onLogout={handleLogout}
     >
       {renderPageContent()}
 
-      {/* Book Add/Edit Modal */}
-      <BookFormModal
-        isOpen={isBookModalOpen}
-        onClose={() => { setIsBookModalOpen(false); setEditingBook(null); }}
-        onSubmit={handleAddOrEditBook}
-        book={editingBook}
-        categories={categories}
-      />
+      {/* Book Add/Edit Modal (Admin Only) */}
+      {role === 'admin' && (
+        <BookFormModal
+          isOpen={isBookModalOpen}
+          onClose={() => { setIsBookModalOpen(false); setEditingBook(null); }}
+          onSubmit={handleAddOrEditBook}
+          book={editingBook}
+          categories={categories}
+        />
+      )}
 
-      {/* Member Registration Modal */}
-      <MemberFormModal
-        isOpen={isMemberModalOpen}
-        onClose={() => setIsMemberModalOpen(false)}
-        onSubmit={handleRegisterMember}
-      />
+      {/* Member Registration Modal (Admin Only) */}
+      {role === 'admin' && (
+        <MemberFormModal
+          isOpen={isMemberModalOpen}
+          onClose={() => setIsMemberModalOpen(false)}
+          onSubmit={handleRegisterMember}
+        />
+      )}
 
-      {/* Peminjaman Checkout Modal */}
-      <LoanFormModal
-        isOpen={isLoanModalOpen}
-        onClose={() => { setIsLoanModalOpen(false); setPreselectedBookId(''); }}
-        onSubmit={handleCreateLoan}
-        books={books}
-        members={members}
-        preselectedBookId={preselectedBookId}
-      />
+      {/* Peminjaman Checkout Modal (Admin Only) */}
+      {role === 'admin' && (
+        <LoanFormModal
+          isOpen={isLoanModalOpen}
+          onClose={() => { setIsLoanModalOpen(false); setPreselectedBookId(''); }}
+          onSubmit={handleCreateLoan}
+          books={books}
+          members={members}
+          preselectedBookId={preselectedBookId}
+        />
+      )}
 
       {/* Floating notifications */}
       {toast && (

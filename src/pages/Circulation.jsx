@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, FileText, CheckCircle2, AlertCircle, HelpCircle, BookOpen, RefreshCcw, DollarSign, Calendar, Info, CornerDownLeft } from 'lucide-react';
+import { ArrowRightLeft, FileText, CheckCircle2, AlertCircle, HelpCircle, BookOpen, RefreshCcw, DollarSign, Calendar, Info, CornerDownLeft, X, Check, Landmark } from 'lucide-react';
 import { Button } from '../components/atoms/Button';
 import { Badge } from '../components/atoms/Badge';
 
-export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
-  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
+export const Circulation = ({ loans, onOpenLoan, onReturnBook, onApproveLoan, onPayFine }) => {
+  const [activeTab, setActiveTab] = useState('active'); // 'active', 'requests', 'fines', 'history'
   const [selectedLoanForReturn, setSelectedLoanForReturn] = useState(null);
 
-  // Filter loans
+  // Filter loans based on transaction and fine statuses
   const activeLoans = loans.filter(l => l.status_transaksi === 'Berjalan');
+  const pendingRequests = loans.filter(l => l.status_transaksi === 'Pengajuan');
+  const unpaidFines = loans.filter(l => Number(l.jumlah_denda) > 0 && l.status_denda === 'Belum Lunas');
   const historyLoans = loans.filter(l => l.status_transaksi === 'Selesai');
 
   // Format IDR Currency
@@ -30,7 +32,7 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
     });
   };
 
-  // Estimate fine (Denda) on Frontend for display
+  // Estimate fine (Denda) on Frontend for display in active list
   const estimateFine = (batasKembali) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -71,19 +73,19 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-2xl font-black text-txt-base tracking-tight m-0">Sirkulasi & Transaksi</h2>
-          <p className="text-sm text-txt-muted">Lakukan peminjaman baru atau kelola pengembalian buku beserta denda keterlambatan.</p>
+          <p className="text-sm text-txt-muted">Lakukan peminjaman baru, kelola pengembalian, persetujuan pengajuan, atau denda anggota.</p>
         </div>
-        <Button onClick={onOpenLoan} variant="accent" className="shrink-0">
+        <Button onClick={onOpenLoan} variant="accent" className="shrink-0 cursor-pointer">
           <ArrowRightLeft className="w-4 h-4" />
-          <span>Transaksi Peminjaman</span>
+          <span>Peminjaman Baru (Konter)</span>
         </Button>
       </div>
 
       {/* Tabs Switcher */}
-      <div className="flex border-b border-border-base gap-2">
+      <div className="flex border-b border-border-base gap-2 flex-wrap text-sm">
         <button
           onClick={() => setActiveTab('active')}
-          className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+          className={`pb-3 px-4 font-bold border-b-2 transition-all cursor-pointer ${
             activeTab === 'active'
               ? 'border-brand-primary text-brand-primary dark:text-[#3B82F6]'
               : 'border-transparent text-txt-muted hover:text-txt-base'
@@ -92,8 +94,34 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
           Peminjaman Berjalan ({activeLoans.length})
         </button>
         <button
+          onClick={() => setActiveTab('requests')}
+          className={`pb-3 px-4 font-bold border-b-2 transition-all cursor-pointer relative ${
+            activeTab === 'requests'
+              ? 'border-brand-primary text-brand-primary dark:text-[#3B82F6]'
+              : 'border-transparent text-txt-muted hover:text-txt-base'
+          }`}
+        >
+          Pengajuan Peminjaman ({pendingRequests.length})
+          {pendingRequests.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping"></span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('fines')}
+          className={`pb-3 px-4 font-bold border-b-2 transition-all cursor-pointer relative ${
+            activeTab === 'fines'
+              ? 'border-brand-primary text-brand-primary dark:text-[#3B82F6]'
+              : 'border-transparent text-txt-muted hover:text-txt-base'
+          }`}
+        >
+          Tunggakan Denda ({unpaidFines.length})
+          {unpaidFines.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-bounce"></span>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab('history')}
-          className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+          className={`pb-3 px-4 font-bold border-b-2 transition-all cursor-pointer ${
             activeTab === 'history'
               ? 'border-brand-primary text-brand-primary dark:text-[#3B82F6]'
               : 'border-transparent text-txt-muted hover:text-txt-base'
@@ -103,8 +131,8 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
         </button>
       </div>
 
-      {/* Main Table Content */}
-      {activeTab === 'active' ? (
+      {/* 1. Active Loans View */}
+      {activeTab === 'active' && (
         activeLoans.length === 0 ? (
           <div className="bg-bg-surface border border-border-base rounded-2xl p-12 flex flex-col items-center justify-center text-txt-muted gap-3 shadow-sm">
             <RefreshCcw className="w-16 h-16 stroke-[1.2] text-txt-muted/70 animate-spin-slow" />
@@ -134,7 +162,7 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
                     return (
                       <tr key={loan.id_detail} className="hover:bg-bg-base/20 transition-colors">
                         <td className="py-4 px-6 font-mono text-xs text-txt-muted font-bold">
-                          #{loan.id_transaksi}
+                          TRX#{loan.id_transaksi}
                         </td>
                         <td className="py-4 px-6">
                           <div className="font-bold text-txt-base leading-snug">{loan.nama_lengkap}</div>
@@ -164,7 +192,7 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
                           <Button 
                             onClick={() => handleReturnClick(loan)} 
                             variant={isOverdue ? 'danger' : 'primary'}
-                            className="text-xs py-1.5 px-3 font-bold"
+                            className="text-xs py-1.5 px-3 font-bold cursor-pointer"
                           >
                             <CornerDownLeft className="w-3.5 h-3.5" />
                             <span>Kembalikan</span>
@@ -178,7 +206,133 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
             </div>
           </div>
         )
-      ) : (
+      )}
+
+      {/* 2. Pending Requests View */}
+      {activeTab === 'requests' && (
+        pendingRequests.length === 0 ? (
+          <div className="bg-bg-surface border border-border-base rounded-2xl p-12 flex flex-col items-center justify-center text-txt-muted gap-3 shadow-sm">
+            <CheckCircle2 className="w-16 h-16 stroke-[1.2] text-txt-muted/70" />
+            <div className="flex flex-col gap-1 text-center">
+              <span className="text-base font-bold text-txt-base">Antrean Pengajuan Bersih</span>
+              <span className="text-xs text-txt-muted">Tidak ada pengajuan peminjaman mandiri dari anggota.</span>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-bg-surface border border-border-base rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border-base bg-bg-base/30 text-txt-muted font-bold text-xs uppercase tracking-wider">
+                    <th className="py-4 px-6">ID Transaksi</th>
+                    <th className="py-4 px-6">Anggota Pendaftar</th>
+                    <th className="py-4 px-6">Buku yang Diajukan</th>
+                    <th className="py-4 px-6">Tanggal Pengajuan</th>
+                    <th className="py-4 px-6 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-base/40">
+                  {pendingRequests.map((request) => (
+                    <tr key={request.id_transaksi} className="hover:bg-bg-base/20 transition-colors">
+                      <td className="py-4 px-6 font-mono text-xs text-txt-muted font-bold">
+                        TRX#{request.id_transaksi}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="font-bold text-txt-base leading-snug">{request.nama_lengkap}</div>
+                        <div className="text-[10px] text-txt-muted">{request.nomor_identitas}</div>
+                      </td>
+                      <td className="py-4 px-6 font-semibold text-txt-base max-w-xs truncate">
+                        {request.judul_buku}
+                      </td>
+                      <td className="py-4 px-6 text-xs text-txt-muted">
+                        {formatDate(request.tanggal_pinjam)}
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <button
+                          onClick={() => onApproveLoan(request.id_transaksi)}
+                          className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                        >
+                          <Check size={14} />
+                          Setujui Peminjaman
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      )}
+
+      {/* 3. Unpaid Fines View */}
+      {activeTab === 'fines' && (
+        unpaidFines.length === 0 ? (
+          <div className="bg-bg-surface border border-border-base rounded-2xl p-12 flex flex-col items-center justify-center text-txt-muted gap-3 shadow-sm">
+            <CheckCircle2 className="w-16 h-16 stroke-[1.2] text-txt-muted/70" />
+            <div className="flex flex-col gap-1 text-center">
+              <span className="text-base font-bold text-txt-base">Tepat Waktu & Bersih</span>
+              <span className="text-xs text-txt-muted">Tidak ada anggota yang menunggak denda keterlambatan buku.</span>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-bg-surface border border-border-base rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border-base bg-bg-base/30 text-txt-muted font-bold text-xs uppercase tracking-wider">
+                    <th className="py-4 px-6">ID Detail</th>
+                    <th className="py-4 px-6">Anggota Peminjam</th>
+                    <th className="py-4 px-6">Judul Buku</th>
+                    <th className="py-4 px-6">Batas Waktu & Pengembalian</th>
+                    <th className="py-4 px-6">Jumlah Tunggakan</th>
+                    <th className="py-4 px-6 text-right">Aksi Pelunasan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-base/40">
+                  {unpaidFines.map((fine) => (
+                    <tr key={fine.id_detail} className="hover:bg-bg-base/20 transition-colors">
+                      <td className="py-4 px-6 font-mono text-xs text-txt-muted font-bold">
+                        DTL#{fine.id_detail}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="font-bold text-txt-base leading-snug">{fine.nama_lengkap}</div>
+                        <div className="text-[10px] text-txt-muted">{fine.nomor_identitas}</div>
+                      </td>
+                      <td className="py-4 px-6 font-semibold text-txt-base max-w-xs truncate">
+                        {fine.judul_buku}
+                      </td>
+                      <td className="py-4 px-6 text-xs text-txt-muted">
+                        <div className="flex flex-col gap-0.5">
+                          <span>Batas: {formatDate(fine.batas_kembali)}</span>
+                          <span className="text-rose-500 font-semibold">Kembali: {formatDate(fine.tanggal_kembali)}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className="text-sm font-bold text-rose-500 font-mono">
+                          {formatIDR(fine.jumlah_denda)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <button
+                          onClick={() => onPayFine(fine.id_detail)}
+                          className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                        >
+                          <Landmark size={14} />
+                          Bayar Lunas (Tunai)
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      )}
+
+      {/* 4. History Loans View */}
+      {activeTab === 'history' && (
         historyLoans.length === 0 ? (
           <div className="bg-bg-surface border border-border-base rounded-2xl p-12 flex flex-col items-center justify-center text-txt-muted gap-3 shadow-sm">
             <FileText className="w-16 h-16 stroke-[1.2] text-txt-muted/70" />
@@ -207,7 +361,7 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
                     return (
                       <tr key={loan.id_detail} className="hover:bg-bg-base/20 transition-colors">
                         <td className="py-4 px-6 font-mono text-xs text-txt-muted font-bold">
-                          #{loan.id_transaksi}
+                          TRX#{loan.id_transaksi}
                         </td>
                         <td className="py-4 px-6">
                           <div className="font-bold text-txt-base leading-snug">{loan.nama_lengkap}</div>
@@ -224,7 +378,9 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
                         </td>
                         <td className="py-4 px-6 text-right font-mono text-xs font-semibold">
                           {fineAmount > 0 ? (
-                            <Badge variant="error">{formatIDR(fineAmount)}</Badge>
+                            <Badge variant={loan.status_denda === 'Lunas' ? 'success' : 'error'}>
+                              {formatIDR(fineAmount)} ({loan.status_denda})
+                            </Badge>
                           ) : (
                             <span className="text-txt-muted">-</span>
                           )}
@@ -254,7 +410,7 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
               </div>
               <button 
                 onClick={() => setSelectedLoanForReturn(null)}
-                className="p-1 rounded-lg hover:bg-bg-base text-txt-muted hover:text-txt-base transition-colors cursor-pointer"
+                className="p-1 rounded-lg hover:bg-bg-base text-txt-muted hover:text-txt-base transition-colors cursor-pointer border border-transparent"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -294,24 +450,24 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
 
               {/* Overdue/Fine Warning */}
               {selectedLoanForReturn.estimatedFine > 0 ? (
-                <div className="bg-error/10 border border-error/20 p-4 rounded-xl flex gap-3 items-start mt-2">
-                  <AlertCircle className="w-5 h-5 text-error shrink-0 mt-0.5" />
+                <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-950/40 p-4 rounded-xl flex gap-3 items-start mt-2">
+                  <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                   <div className="flex flex-col gap-1">
-                    <h4 className="text-xs font-bold text-error uppercase tracking-wider">Keterlambatan Terdeteksi!</h4>
+                    <h4 className="text-xs font-bold text-rose-500 uppercase tracking-wider">Keterlambatan Terdeteksi!</h4>
                     <p className="text-xs text-txt-base leading-relaxed">
                       Pengembalian terlambat selama <strong>{selectedLoanForReturn.lateDays} hari</strong>. Anggota diwajibkan membayar denda keterlambatan sebesar:
                     </p>
-                    <span className="text-base font-extrabold text-error font-mono flex items-center gap-1 mt-1">
+                    <span className="text-base font-extrabold text-rose-500 font-mono flex items-center gap-1 mt-1">
                       <DollarSign className="w-4 h-4 shrink-0" />
                       {formatIDR(selectedLoanForReturn.estimatedFine)}
                     </span>
                   </div>
                 </div>
               ) : (
-                <div className="bg-success/10 border border-success/20 p-4 rounded-xl flex gap-3 items-start mt-2">
-                  <CheckCircle2 className="w-5 h-5 text-success shrink-0 mt-0.5" />
+                <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-950/40 p-4 rounded-xl flex gap-3 items-start mt-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                   <div className="flex flex-col gap-0.5">
-                    <h4 className="text-xs font-bold text-success uppercase tracking-wider">Tepat Waktu</h4>
+                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Tepat Waktu</h4>
                     <p className="text-xs text-txt-muted leading-relaxed">
                       Buku dikembalikan sebelum batas tanggal kembali. Tidak dikenakan denda denda keterlambatan (<strong>Bebas Denda</strong>).
                     </p>
@@ -321,10 +477,11 @@ export const Circulation = ({ loans, onOpenLoan, onReturnBook }) => {
 
               {/* Modal Footer */}
               <div className="flex justify-end gap-3 mt-4 border-t border-border-base pt-4">
-                <Button variant="secondary" onClick={() => setSelectedLoanForReturn(null)}>Batal</Button>
+                <Button variant="secondary" onClick={() => setSelectedLoanForReturn(null)} className="cursor-pointer">Batal</Button>
                 <Button 
                   onClick={handleConfirmReturn} 
                   variant={selectedLoanForReturn.estimatedFine > 0 ? 'danger' : 'primary'}
+                  className="cursor-pointer font-bold"
                 >
                   Confirm Pengembalian
                 </Button>

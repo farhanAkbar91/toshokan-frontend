@@ -9,7 +9,9 @@ export const MemberFormModal = ({ isOpen, onClose, onSubmit }) => {
     nomor_identitas: '',
     nama_lengkap: '',
     alamat: '',
-    nomor_telepon: ''
+    nomor_telepon: '',
+    email: '',
+    password: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -20,7 +22,9 @@ export const MemberFormModal = ({ isOpen, onClose, onSubmit }) => {
         nomor_identitas: '',
         nama_lengkap: '',
         alamat: '',
-        nomor_telepon: ''
+        nomor_telepon: '',
+        email: '',
+        password: ''
       });
       setErrors({});
     }
@@ -68,14 +72,14 @@ export const MemberFormModal = ({ isOpen, onClose, onSubmit }) => {
           </div>
           <button 
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-bg-base text-txt-muted hover:text-txt-base transition-colors cursor-pointer"
+            className="p-1 rounded-lg hover:bg-bg-base text-txt-muted hover:text-txt-base transition-colors cursor-pointer border border-transparent"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 max-h-[75vh] overflow-y-auto">
           <FormField label="Nomor Identitas (NIK/KTP/NIM)" error={errors.nomor_identitas} required>
             <Input 
               name="nomor_identitas" 
@@ -94,13 +98,35 @@ export const MemberFormModal = ({ isOpen, onClose, onSubmit }) => {
             />
           </FormField>
 
-          <FormField label="Nomor Telepon" error={errors.nomor_telepon} required>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Nomor Telepon" error={errors.nomor_telepon} required>
+              <Input 
+                name="nomor_telepon" 
+                type="tel"
+                value={formData.nomor_telepon} 
+                onChange={handleChange} 
+                placeholder="Contoh: 08123456789" 
+              />
+            </FormField>
+
+            <FormField label="Email (Opsional)" error={errors.email}>
+              <Input 
+                name="email" 
+                type="email"
+                value={formData.email} 
+                onChange={handleChange} 
+                placeholder="Contoh: user@email.com" 
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Kata Sandi Akun Web (Opsional)" error={errors.password}>
             <Input 
-              name="nomor_telepon" 
-              type="tel"
-              value={formData.nomor_telepon} 
+              name="password" 
+              type="password"
+              value={formData.password} 
               onChange={handleChange} 
-              placeholder="Contoh: 08123456789" 
+              placeholder="Kata sandi pendaftar..." 
             />
           </FormField>
 
@@ -111,14 +137,14 @@ export const MemberFormModal = ({ isOpen, onClose, onSubmit }) => {
               onChange={handleChange}
               placeholder="Masukkan alamat lengkap tinggal..."
               rows="3"
-              className="w-full px-3 py-2.5 rounded-lg bg-bg-base border border-border-base text-txt-base placeholder:text-txt-muted/50 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all duration-200 text-sm"
+              className="w-full px-3 py-2.5 rounded-lg bg-bg-base border border-border-base text-txt-base placeholder:text-txt-muted/50 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all duration-200 text-sm resize-none"
             />
           </FormField>
 
           {/* Modal Footer */}
           <div className="flex justify-end gap-3 mt-4 border-t border-border-base pt-4">
-            <Button variant="secondary" onClick={onClose}>Batal</Button>
-            <Button type="submit" variant="primary">
+            <Button variant="secondary" onClick={onClose} type="button" className="cursor-pointer">Batal</Button>
+            <Button type="submit" variant="primary" className="cursor-pointer">
               <Save className="w-4 h-4" />
               <span>Daftarkan Anggota</span>
             </Button>
